@@ -12,6 +12,7 @@ public class SoundManager : GenericSingelton<SoundManager>
             _effectSource.Stop();
         
         _effectSource.clip = clip;
+        _effectSource.pitch = Random.Range(0.8f, 1.2f);
         _effectSource.Play();
     }
 

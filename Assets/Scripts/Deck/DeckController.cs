@@ -11,6 +11,7 @@ public class DeckController : MonoBehaviour
     [SerializeField] GameArea _gameAreaPrefab;
     [SerializeField] Sprite _cardBack;
     [SerializeField] bool _playAnimations = true;
+    
     GameArea _gameArea;
     CardController _cardPrefab;
     

@@ -5,6 +5,7 @@ using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using UnityEngine;
 using UnityEngine.Pool;
+using Object = UnityEngine.Object;
 
 public class DeckController : MonoBehaviour
 {
@@ -15,7 +16,7 @@ public class DeckController : MonoBehaviour
     GameArea _gameArea;
     CardController _cardPrefab;
     
-    Dictionary<CardSO, CardController> _activeCards = new();
+    Dictionary<CardController, CardSO> _activeCards = new();
     ObjectPool<CardController> _cardControllerPool;
     bool _isInDrawingSequence;
     bool _isGameOver;
@@ -126,63 +127,26 @@ public class DeckController : MonoBehaviour
     
     async UniTask DrawCardsFromDeck(CardSO p1CardData, CardSO p2CardData, bool isVisible, int sortingOrder = 0)
     {
-        var p1Card = _cardControllerPool.Get();
-        p1Card.OverrideSortingOrder(sortingOrder);
-        p1Card.transform.position = _gameArea.p1DeckPosition.position;
-        p1Card.gameObject.SetActive(true);
-        if(p1CardData)
-        {
-            p1Card.Initialize(_cardBack, p1CardData, false);
-            _activeCards.Add(p1CardData, p1Card);
-        }
-        else
-        {
-            p1Card.Initialize(_cardBack, null, false);
-        }
-                    
-        var p2Card = _cardControllerPool.Get();
-        p2Card.OverrideSortingOrder(sortingOrder);
-        p2Card.transform.position = _gameArea.p2DeckPosition.position;
-        p2Card.gameObject.SetActive(true);
-        if(p2CardData)
-        {
-            p2Card.Initialize(_cardBack, p2CardData, false);
-            _activeCards.Add(p2CardData, p2Card);
-        }
-        else
-        {
-            p2Card.Initialize(_cardBack, null, false);
-        }
+        var card = _cardControllerPool.Get();
+        _activeCards.Add(card, p1CardData);
         
+        var p1Sequence = new CardSequenceBuilder(card, _gameArea.p1DeckPosition, _gameArea.p1PlacementPosition, _cardBack, p1CardData)
+            .WithSortingOrder(sortingOrder)
+            .WithFacingUp(isVisible)
+            .Build();
+        
+        card = _cardControllerPool.Get();
+        _activeCards.Add(card, p2CardData);
+        
+        var p2Sequence = new CardSequenceBuilder(card, _gameArea.p2DeckPosition, _gameArea.p2PlacementPosition, _cardBack, p2CardData)
+            .WithSortingOrder(sortingOrder)
+            .WithFacingUp(isVisible)
+            .Build();
+
         await UniTask.WhenAll(
-            p1Card.transform
-                .DOMove(_gameArea.p1PlacementPosition.position, 0.2f)
-                .OnComplete(async () =>
-                {
-                    if (p1CardData)
-                    {
-                        p1Card.transform.SetParent(_gameArea.p1PlacementPosition);
-                        p1Card.ToggleCardVisibility(isVisible);
-                        return;
-                    }
-                    await UniTask.Delay(TimeSpan.FromSeconds(1f));
-                    Destroy(p1Card.gameObject);
-                }).ToUniTask(),
-            
-            p2Card.transform
-                .DOMove(_gameArea.p2PlacementPosition.position, 0.2f)
-                .OnComplete(async () =>
-                {
-                    if (p2CardData)
-                    {
-                        p2Card.transform.SetParent(_gameArea.p2PlacementPosition);
-                        p2Card.ToggleCardVisibility(isVisible);
-                        return;
-                    }
-                    await UniTask.Delay(TimeSpan.FromSeconds(1f));
-                    Destroy(p2Card.gameObject);
-                }).ToUniTask()
-        );
+            p1Sequence.Play(),
+            p2Sequence.Play()
+            );
     }
 
     async UniTask WinSequence(Transform winningSide)
@@ -193,17 +157,18 @@ public class DeckController : MonoBehaviour
         foreach (var activeCard in _activeCards)
         {
             durationOffset += 0.075f;
-            activeCard.Value.transform.parent.rotation = Quaternion.Euler(Vector3.zero);
-            activeCard.Value.transform.SetParent(null, true);
-            var task = activeCard.Value.transform.DOMove(winningSide.position, 0.2f + durationOffset).OnComplete(() =>
+            activeCard.Key.transform.parent.rotation = Quaternion.Euler(Vector3.zero);
+            activeCard.Key.transform.SetParent(null, true);
+            var task = activeCard.Key.transform.DOMove(winningSide.position, 0.2f + durationOffset).OnComplete(() =>
             {
-                activeCard.Value.ToggleCardVisibility(false);
-                activeCard.Value.gameObject.SetActive(false);
-                _cardControllerPool.Release(activeCard.Value);
+                activeCard.Key.ToggleCardVisibility(false);
+                activeCard.Key.gameObject.SetActive(false);
+                _cardControllerPool.Release(activeCard.Key);
             }).ToUniTask();
             tasks.Add(task);
         }
 
+        
         await UniTask.WhenAll(tasks);
         _activeCards.Clear();
     }
@@ -268,5 +233,72 @@ public class DeckController : MonoBehaviour
                 }
             }
         }
+    }
+}
+
+public class CardSequenceBuilder
+{
+    CardController _cardController;
+    Transform _startPosition;
+    Transform _endPosition;
+    
+    int _sortingOrder = 0;
+    bool _isFacingUp = false;
+    Tween _cardTween;
+    
+    public CardSequenceBuilder(CardController cardInstance, Transform startTransform, Transform endTransform, Sprite cardBack, CardSO cardData = null)
+    {
+        _cardController = cardInstance;
+        _startPosition = startTransform;
+        _endPosition = endTransform;
+        
+        _cardController.Initialize(cardBack, cardData, false);
+    }
+
+    public CardSequenceBuilder WithSortingOrder(int sortingOrder)
+    {
+        _sortingOrder = sortingOrder;
+        return this;
+    }
+    
+    public CardSequenceBuilder WithFacingUp(bool isFacingUp)
+    {
+        _isFacingUp = isFacingUp;
+        return this;
+    }
+
+
+    public CardSequenceBuilder Build()
+    {
+        _cardController.OverrideSortingOrder(_sortingOrder);
+        _cardController.transform.position = _startPosition.position;
+        _cardController.gameObject.SetActive(true);
+
+        _cardTween = _cardController.transform
+            .DOMove(_endPosition.position, 0.2f)
+            .OnComplete(async () =>
+            {
+                if (_cardController.HasFrontSide)
+                {
+                    _cardController.transform.SetParent(_endPosition);
+                    _cardController.ToggleCardVisibility(_isFacingUp);
+                    return;
+                }
+
+                await UniTask.Delay(TimeSpan.FromSeconds(1f));
+#if UNITY_EDITOR                
+                Object.DestroyImmediate(_cardController.gameObject);
+#else                
+                Object.Destroy(_cardController.gameObject);
+#endif
+
+            });
+        
+        return this;
+    }
+
+    public async UniTask Play()
+    {
+        await _cardTween.Play();
     }
 }

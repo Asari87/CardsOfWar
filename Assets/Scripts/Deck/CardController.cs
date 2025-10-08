@@ -9,6 +9,7 @@ public class CardController : MonoBehaviour
     
     CardSO _cardData;
     
+    public bool HasFrontSide => _frontSide;
     public int CardValue => _cardData.value;
 
     public void Initialize(Sprite backSide, CardSO cardData, bool isVisible)

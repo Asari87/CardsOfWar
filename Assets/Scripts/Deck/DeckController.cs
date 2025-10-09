@@ -157,6 +157,18 @@ public class DeckController : MonoBehaviour
         _ongoingWarCount = 0;
         List<UniTask> tasks = new List<UniTask>();
 
+        if (_activeCards.Keys.Any(c => !c.IsFacingUp))
+        {
+            foreach (var card in _activeCards)
+            {
+                if(card.Key.IsFacingUp) continue;
+                card.Key.ToggleCardVisibility(true);
+                await UniTask.Delay(TimeSpan.FromSeconds(0.1f));
+            }
+            await UniTask.Delay(TimeSpan.FromSeconds(2f));
+        }
+        
+        
         float durationOffset = 0;
         foreach (var activeCard in _activeCards)
         {
@@ -202,11 +214,11 @@ public class DeckController : MonoBehaviour
             if(step.ignoreStepCalculation)
             {
                 await DrawCardsFromDeck(
-                    null, 
-                    null, 
+                    step.P1Card, 
+                    step.P2Card, 
                     false, 
                     sortingOrderOverride,
-                    new Vector2(1 + 0.3f * stepCount, 0.2f * (_ongoingWarCount - 1))
+                    new Vector2(1 + 0.4f * stepCount, 0.35f * (_ongoingWarCount - 1))
                     );
                 
                 await UniTask.Delay(TimeSpan.FromSeconds(0.1f));

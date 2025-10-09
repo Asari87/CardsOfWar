@@ -8,7 +8,8 @@ public class CardController : MonoBehaviour
     [SerializeField] SortingGroup  _sortingGroup;
     
     CardSO _cardData;
-    
+
+    public bool IsFacingUp => _frontSide?.gameObject.activeInHierarchy ?? false;
     public bool HasFrontSide => _frontSide;
     public int CardValue => _cardData.value;
 

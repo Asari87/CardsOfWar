@@ -110,8 +110,6 @@ public class DeckController : MonoBehaviour
         var response = await FakeServerManager.Instance.DrawNextCardRequest();
         foreach (var step in response.steps)
         {
-            RefreshDeckVisuals(step.VisualDeckStatus);
-
             if (step.isGameOver)
             {
                 Debug.Log($"Game Over! Status {step.state}");
@@ -130,6 +128,7 @@ public class DeckController : MonoBehaviour
                         await _gameArea.GameAreaAnimator.TriggerP1Win();
                     
                     await WinSequence(_gameArea.p1SideDeckPosition);
+                    await RefreshDeckVisuals(step.VisualDeckStatus);
                     break;
             
                 case FakeServerManager.RoundState.P2Win:
@@ -140,6 +139,7 @@ public class DeckController : MonoBehaviour
                         await _gameArea.GameAreaAnimator.TriggerP2Win();
                     
                     await WinSequence(_gameArea.p2SideDeckPosition);
+                    await RefreshDeckVisuals(step.VisualDeckStatus);
                     break;
             
                 case FakeServerManager.RoundState.Tie:

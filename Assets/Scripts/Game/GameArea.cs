@@ -1,4 +1,5 @@
 using System;
+using DG.Tweening;
 using TMPro;
 using UnityEngine;
 
@@ -26,6 +27,12 @@ public class GameArea : MonoBehaviour
     [SerializeField] TMP_Text p2SideDeckCount;
 
     public GameAreaAnimationHandler GameAreaAnimator => _animationHandler;
+    
+    int _prevP1DeckCount;
+    int _prevP1SideDeckCount;
+    int _prevP2DeckCount;
+    int _prevP2SideDeckCount;
+    
     
     void Awake()
     {
@@ -62,25 +69,40 @@ public class GameArea : MonoBehaviour
 
     public void ToggleP1DeckVisual(int cardCount)
     {
-        p1DeckCount.text = cardCount.ToString();
-        p1DeckPlaceholder.SetActive(cardCount > 0);
+        DoRunningNumberAnimation(_prevP1DeckCount, cardCount, p1DeckPlaceholder, p1DeckCount).Play();
+        _prevP1DeckCount = cardCount;
     }
     
     public void ToggleP1SideDeckVisual(int cardCount)
     {
-        p1SideDeckCount.text = cardCount.ToString();
-        p1SideDeckPlaceholder.SetActive(cardCount > 0);
+        DoRunningNumberAnimation(_prevP1SideDeckCount, cardCount, p1SideDeckPlaceholder, p1SideDeckCount).Play();
+        _prevP1SideDeckCount = cardCount;
     }
     
     public void ToggleP2DeckVisual(int cardCount)
     {
-        p2DeckCount.text = cardCount.ToString();
-        p2DeckPlaceholder.SetActive(cardCount > 0);
+        DoRunningNumberAnimation(_prevP2DeckCount, cardCount, p2DeckPlaceholder, p2DeckCount).Play();
+        _prevP2DeckCount = cardCount;
     }
     
     public void ToggleP2SideDeckVisual(int cardCount)
     {
-        p2SideDeckCount.text = cardCount.ToString();
-        p2SideDeckPlaceholder.SetActive(cardCount > 0);
+        DoRunningNumberAnimation(_prevP2SideDeckCount, cardCount, p2SideDeckPlaceholder, p2SideDeckCount).Play();
+        _prevP2SideDeckCount = cardCount;
+    }
+
+    Tween DoRunningNumberAnimation(int startFrom, int target, GameObject deckPlaceholder, TMP_Text deckCountText)
+    {
+        return DOTween.To(() => startFrom, x => startFrom = x, target, 0.1f)
+            .OnUpdate(() =>
+            {
+                deckCountText.text = startFrom.ToString();
+                deckPlaceholder.SetActive(target > 0);
+            })
+            .OnComplete(() =>
+            {
+                deckCountText.text = target.ToString();
+                deckPlaceholder.SetActive(target > 0);
+            });
     }
 }

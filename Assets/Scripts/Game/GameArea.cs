@@ -1,4 +1,5 @@
 using System;
+using TMPro;
 using UnityEngine;
 
 public class GameArea : MonoBehaviour
@@ -12,6 +13,8 @@ public class GameArea : MonoBehaviour
     public Transform p1PlacementPosition;
     [SerializeField] GameObject p1DeckPlaceholder;
     [SerializeField] GameObject p1SideDeckPlaceholder;
+    [SerializeField] TMP_Text p1DeckCount;
+    [SerializeField] TMP_Text p1SideDeckCount;
     
     [Header("Player 2 References")]
     public Transform p2DeckPosition;
@@ -19,16 +22,18 @@ public class GameArea : MonoBehaviour
     public Transform p2PlacementPosition;
     [SerializeField] GameObject p2DeckPlaceholder;
     [SerializeField] GameObject p2SideDeckPlaceholder;
+    [SerializeField] TMP_Text p2DeckCount;
+    [SerializeField] TMP_Text p2SideDeckCount;
 
     public GameAreaAnimationHandler GameAreaAnimator => _animationHandler;
     
     void Awake()
     {
         SetupCamera();
-        ToggleP1DeckVisual(false);
-        ToggleP1SideDeckVisual(false);
-        ToggleP2DeckVisual(false);
-        ToggleP2SideDeckVisual(false);
+        ToggleP1DeckVisual(0);
+        ToggleP1SideDeckVisual(0);
+        ToggleP2DeckVisual(0);
+        ToggleP2SideDeckVisual(0);
         
         p1PlacementPosition.ClearChildren();
         p2PlacementPosition.ClearChildren();
@@ -55,23 +60,27 @@ public class GameArea : MonoBehaviour
             mainCamera.orthographicSize = areaSize.x / 2f; // vertical case
     }
 
-    public void ToggleP1DeckVisual(bool hasCards)
+    public void ToggleP1DeckVisual(int cardCount)
     {
-        p1DeckPlaceholder.SetActive(hasCards);
+        p1DeckCount.text = cardCount.ToString();
+        p1DeckPlaceholder.SetActive(cardCount > 0);
     }
     
-    public void ToggleP1SideDeckVisual(bool hasCards)
+    public void ToggleP1SideDeckVisual(int cardCount)
     {
-        p1SideDeckPlaceholder.SetActive(hasCards);
+        p1SideDeckCount.text = cardCount.ToString();
+        p1SideDeckPlaceholder.SetActive(cardCount > 0);
     }
     
-    public void ToggleP2DeckVisual(bool hasCards)
+    public void ToggleP2DeckVisual(int cardCount)
     {
-        p2DeckPlaceholder.SetActive(hasCards);
+        p2DeckCount.text = cardCount.ToString();
+        p2DeckPlaceholder.SetActive(cardCount > 0);
     }
     
-    public void ToggleP2SideDeckVisual(bool hasCards)
+    public void ToggleP2SideDeckVisual(int cardCount)
     {
-        p2SideDeckPlaceholder.SetActive(hasCards);
+        p2SideDeckCount.text = cardCount.ToString();
+        p2SideDeckPlaceholder.SetActive(cardCount > 0);
     }
 }

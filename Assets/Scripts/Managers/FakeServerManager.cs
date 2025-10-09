@@ -41,7 +41,7 @@ public class FakeServerManager : GenericSingelton<FakeServerManager>
         return UniTask.FromResult(response);
     }
 
-    GameStepData CreateGameStep()
+    GameStepData CreateGameStep(bool calculateResult = true)
     {
         var stepData = new GameStepData();
         
@@ -69,7 +69,7 @@ public class FakeServerManager : GenericSingelton<FakeServerManager>
                 stepData.state = RoundState.P1Win;
             }
         }
-        else
+        else if (calculateResult)
         {
             if (p1Card.value == p2Card.value)
             {
@@ -103,6 +103,12 @@ public class FakeServerManager : GenericSingelton<FakeServerManager>
                 }
             }
         }
+        else
+        {
+            _gameState = GameState.War;
+            _activeCards.Add(p1Card);
+            _activeCards.Add(p2Card);
+        }
         
         stepData.P1Card = p1Card;
         stepData.P2Card = p2Card;
@@ -124,7 +130,7 @@ public class FakeServerManager : GenericSingelton<FakeServerManager>
         
         for (int i = 0; i < 3; i++)
         {
-            var stepData = CreateGameStep();
+            var stepData = CreateGameStep(false);
             stepData.ignoreStepCalculation = true;
             response.steps.Add(stepData);
 
@@ -134,9 +140,6 @@ public class FakeServerManager : GenericSingelton<FakeServerManager>
                 Debug.Log($"{GetType()} - Game ended during war sequence");
                 return UniTask.FromResult(response);
             }
-            
-            _activeCards.Add(stepData.P1Card);
-            _activeCards.Add(stepData.P2Card);
         }
 
         Debug.Log($"{GetType()} - Drawing final cards in war sequence");
@@ -157,7 +160,9 @@ public class FakeServerManager : GenericSingelton<FakeServerManager>
         
         return UniTask.FromResult(new NewGameResponse()
         {
-            success = true
+            success = true,
+            p1DeckCount = p1.deck.Count,
+            p2DeckCount = p2.deck.Count,
         });
     }
     
@@ -176,6 +181,8 @@ public class FakeServerManager : GenericSingelton<FakeServerManager>
 public class NewGameResponse
 {
     public bool success;
+    public int p1DeckCount;
+    public int p2DeckCount;
 }
 
 public class DrawCardResponse

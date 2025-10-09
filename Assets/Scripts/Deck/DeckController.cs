@@ -20,6 +20,8 @@ public class DeckController : MonoBehaviour
     ObjectPool<CardController> _cardControllerPool;
     bool _isInDrawingSequence;
     bool _isGameOver;
+    bool _p1DeckEmpty;
+    bool _p2DeckEmpty;
     int _ongoingWarCount = 0;
     
     public Action<FakeServerManager.RoundState> OnGameEnd;
@@ -43,10 +45,10 @@ public class DeckController : MonoBehaviour
         {
             _isGameOver = false;
         
-            _gameArea.ToggleP1DeckVisual(true);
-            _gameArea.ToggleP1SideDeckVisual(false);
-            _gameArea.ToggleP2DeckVisual(true);
-            _gameArea.ToggleP2SideDeckVisual(false);
+            _gameArea.ToggleP1DeckVisual(response.p1DeckCount);
+            _gameArea.ToggleP1SideDeckVisual(0);
+            _gameArea.ToggleP2DeckVisual(response.p2DeckCount);
+            _gameArea.ToggleP2SideDeckVisual(0);
 
             Debug.Log($"{GetType()} - Initialized!");   
         }
@@ -56,12 +58,42 @@ public class DeckController : MonoBehaviour
         }
     }
 
-    void RefreshDeckVisuals(VisualDeckStatus status)
+    async UniTask RefreshDeckVisuals(VisualDeckStatus status)
     {
-        _gameArea.ToggleP1DeckVisual(status.p1DeckCount > 0);
-        _gameArea.ToggleP1SideDeckVisual(status.p1SideDeckCount > 0);
-        _gameArea.ToggleP2DeckVisual(status.p2DeckCount > 0);
-        _gameArea.ToggleP2SideDeckVisual(status.p2SideDeckCount > 0);
+        if (_p1DeckEmpty && status.p1DeckCount > 0)
+        {
+            var p1Card = _cardControllerPool.Get();
+            _gameArea.ToggleP1SideDeckVisual(status.p1SideDeckCount);
+            await new CardSequenceBuilder(p1Card, _gameArea.p1SideDeckPosition, _gameArea.p1DeckPosition, _cardBack)
+                .WithSelfDestruct(true, 0.5f)
+                .Build()
+                .Play();
+            _gameArea.ToggleP1DeckVisual(status.p1DeckCount);
+        }
+        else
+        {
+            _gameArea.ToggleP1DeckVisual(status.p1DeckCount);
+            _gameArea.ToggleP1SideDeckVisual(status.p1SideDeckCount);
+        }
+        
+        if (_p2DeckEmpty && status.p2DeckCount > 0)
+        {
+            var p2Card = _cardControllerPool.Get();
+            _gameArea.ToggleP2SideDeckVisual(status.p2SideDeckCount);
+            await new CardSequenceBuilder(p2Card, _gameArea.p2SideDeckPosition, _gameArea.p2DeckPosition, _cardBack)
+                .WithSelfDestruct(true, 0.5f)
+                .Build()
+                .Play();
+            _gameArea.ToggleP2DeckVisual(status.p2DeckCount);
+        }
+        else
+        {
+            _gameArea.ToggleP2DeckVisual(status.p2DeckCount);
+            _gameArea.ToggleP2SideDeckVisual(status.p2SideDeckCount);
+        }
+
+        _p1DeckEmpty = status.p1DeckCount == 0;
+        _p2DeckEmpty = status.p2DeckCount == 0;
     }
 
     public void DrawCards()
@@ -112,11 +144,14 @@ public class DeckController : MonoBehaviour
             
                 case FakeServerManager.RoundState.Tie:
                 case FakeServerManager.RoundState.War:
-                    await DrawCardsFromDeck(step.P1Card, step.P2Card, true);
+                    var cards = await DrawCardsFromDeck(step.P1Card, step.P2Card, true);
                     await UniTask.Delay(TimeSpan.FromSeconds(0.5f));
   
                     if (_playAnimations)
                         await _gameArea.GameAreaAnimator.TriggerWar();
+
+                    cards.Item1.transform.SetParent(null, true);
+                    cards.Item2.transform.SetParent(null, true);
                     
                     await InitiateWarSequence();
                     break;
@@ -126,21 +161,21 @@ public class DeckController : MonoBehaviour
         _isInDrawingSequence = false;
     }
     
-    async UniTask DrawCardsFromDeck(CardSO p1CardData, CardSO p2CardData, bool isVisible, int sortingOrder = 0, Vector2 offest = default)
+    async UniTask<(CardController, CardController)> DrawCardsFromDeck(CardSO p1CardData, CardSO p2CardData, bool isVisible, int sortingOrder = 0, Vector2 offest = default)
     {
-        var card = _cardControllerPool.Get();
-        _activeCards.Add(card, p1CardData);
+        var p1Card = _cardControllerPool.Get();
+        _activeCards.Add(p1Card, p1CardData);
         
-        var p1Sequence = new CardSequenceBuilder(card, _gameArea.p1DeckPosition, _gameArea.p1PlacementPosition, _cardBack, p1CardData)
+        var p1Sequence = new CardSequenceBuilder(p1Card, _gameArea.p1DeckPosition, _gameArea.p1PlacementPosition, _cardBack, p1CardData)
             .WithSortingOrder(sortingOrder)
             .WithFacingUp(isVisible)
             .WithOffset(offest)
             .Build();
         
-        card = _cardControllerPool.Get();
-        _activeCards.Add(card, p2CardData);
+        var p2Card = _cardControllerPool.Get();
+        _activeCards.Add(p2Card, p2CardData);
         
-        var p2Sequence = new CardSequenceBuilder(card, _gameArea.p2DeckPosition, _gameArea.p2PlacementPosition, _cardBack, p2CardData)
+        var p2Sequence = new CardSequenceBuilder(p2Card, _gameArea.p2DeckPosition, _gameArea.p2PlacementPosition, _cardBack, p2CardData)
             .WithSortingOrder(sortingOrder)
             .WithFacingUp(isVisible)
             .WithOffset(-offest)
@@ -150,6 +185,8 @@ public class DeckController : MonoBehaviour
             p1Sequence.Play(),
             p2Sequence.Play()
             );
+        
+        return (p1Card, p2Card);
     }
 
     async UniTask WinSequence(Transform winningSide)
@@ -218,9 +255,10 @@ public class DeckController : MonoBehaviour
                     step.P2Card, 
                     false, 
                     sortingOrderOverride,
-                    new Vector2(1 + 0.4f * stepCount, 0.35f * (_ongoingWarCount - 1))
+                    new Vector2(0.5f + 0.4f * stepCount, 0.35f * (_ongoingWarCount - 1))
                     );
                 
+                await RefreshDeckVisuals(step.VisualDeckStatus);
                 await UniTask.Delay(TimeSpan.FromSeconds(0.1f));
             }
             else
@@ -237,6 +275,7 @@ public class DeckController : MonoBehaviour
                             await _gameArea.GameAreaAnimator.TriggerP1Win();
                         
                         await WinSequence(_gameArea.p1SideDeckPosition);
+                        await RefreshDeckVisuals(step.VisualDeckStatus);
                         break;
 
                     case FakeServerManager.RoundState.P2Win:
@@ -247,11 +286,12 @@ public class DeckController : MonoBehaviour
                             await _gameArea.GameAreaAnimator.TriggerP2Win();
                         
                         await WinSequence(_gameArea.p2SideDeckPosition);
+                        await RefreshDeckVisuals(step.VisualDeckStatus);
                         break;
 
                     case FakeServerManager.RoundState.Tie:
                     case FakeServerManager.RoundState.War:
-                        await DrawCardsFromDeck(step.P1Card, step.P2Card, true, stepCount);
+                        await DrawCardsFromDeck(step.P1Card, step.P2Card, true, stepCount, new Vector2(0, 0.35f * (_ongoingWarCount - 1)));
                         
                         if (_playAnimations)
                             await _gameArea.GameAreaAnimator.TriggerWar();
@@ -312,7 +352,7 @@ public class CardSequenceBuilder
         return this;
     }
 
-    public CardSequenceBuilder WithOffset(bool selfDestruct, float selfDestructDelay)
+    public CardSequenceBuilder WithSelfDestruct(bool selfDestruct, float selfDestructDelay)
     {
         _selfDestruct = selfDestruct;
         _selfDestructDelay = selfDestructDelay;
@@ -340,7 +380,6 @@ public class CardSequenceBuilder
                 if (_selfDestruct)
                 {
                     await UniTask.Delay(TimeSpan.FromSeconds(_selfDestructDelay));
-                    
 #if UNITY_EDITOR
                     Object.DestroyImmediate(_cardController.gameObject);
 #else

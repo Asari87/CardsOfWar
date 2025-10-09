@@ -20,6 +20,7 @@ public class DeckController : MonoBehaviour
     ObjectPool<CardController> _cardControllerPool;
     bool _isInDrawingSequence;
     bool _isGameOver;
+    int _ongoingWarCount = 0;
     
     public Action<FakeServerManager.RoundState> OnGameEnd;
     
@@ -125,7 +126,7 @@ public class DeckController : MonoBehaviour
         _isInDrawingSequence = false;
     }
     
-    async UniTask DrawCardsFromDeck(CardSO p1CardData, CardSO p2CardData, bool isVisible, int sortingOrder = 0)
+    async UniTask DrawCardsFromDeck(CardSO p1CardData, CardSO p2CardData, bool isVisible, int sortingOrder = 0, Vector2 offest = default)
     {
         var card = _cardControllerPool.Get();
         _activeCards.Add(card, p1CardData);
@@ -133,6 +134,7 @@ public class DeckController : MonoBehaviour
         var p1Sequence = new CardSequenceBuilder(card, _gameArea.p1DeckPosition, _gameArea.p1PlacementPosition, _cardBack, p1CardData)
             .WithSortingOrder(sortingOrder)
             .WithFacingUp(isVisible)
+            .WithOffset(offest)
             .Build();
         
         card = _cardControllerPool.Get();
@@ -141,6 +143,7 @@ public class DeckController : MonoBehaviour
         var p2Sequence = new CardSequenceBuilder(card, _gameArea.p2DeckPosition, _gameArea.p2PlacementPosition, _cardBack, p2CardData)
             .WithSortingOrder(sortingOrder)
             .WithFacingUp(isVisible)
+            .WithOffset(-offest)
             .Build();
 
         await UniTask.WhenAll(
@@ -151,13 +154,16 @@ public class DeckController : MonoBehaviour
 
     async UniTask WinSequence(Transform winningSide)
     {
+        _ongoingWarCount = 0;
         List<UniTask> tasks = new List<UniTask>();
 
         float durationOffset = 0;
         foreach (var activeCard in _activeCards)
         {
+            if(activeCard.Key.transform.parent)
+                activeCard.Key.transform.parent.rotation = Quaternion.Euler(Vector3.zero);
+            
             durationOffset += 0.075f;
-            activeCard.Key.transform.parent.rotation = Quaternion.Euler(Vector3.zero);
             activeCard.Key.transform.SetParent(null, true);
             var task = activeCard.Key.transform.DOMove(winningSide.position, 0.2f + durationOffset).OnComplete(() =>
             {
@@ -175,12 +181,16 @@ public class DeckController : MonoBehaviour
 
     async UniTask InitiateWarSequence()
     {
+        _ongoingWarCount++;
         var response = await FakeServerManager.Instance.DrawNextCardRequest();
 
-        var stepCount = _activeCards.Count;
+        var sortingOrderOverride = _activeCards.Count;
+        var stepCount = 0;
         foreach (var step in response.steps)
         {
             stepCount++;
+            sortingOrderOverride++;
+            
             if (step.isGameOver)
             {
                 Debug.Log($"Game Over! Status {step.state}");
@@ -191,7 +201,14 @@ public class DeckController : MonoBehaviour
         
             if(step.ignoreStepCalculation)
             {
-                await DrawCardsFromDeck(null, null, false, stepCount);
+                await DrawCardsFromDeck(
+                    null, 
+                    null, 
+                    false, 
+                    sortingOrderOverride,
+                    new Vector2(1 + 0.3f * stepCount, 0.2f * (_ongoingWarCount - 1))
+                    );
+                
                 await UniTask.Delay(TimeSpan.FromSeconds(0.1f));
             }
             else
@@ -244,7 +261,11 @@ public class CardSequenceBuilder
     
     int _sortingOrder = 0;
     bool _isFacingUp = false;
+    bool _selfDestruct = false;
+    float _selfDestructDelay = 1;
+    float _transitionTime = 0.2f;
     Tween _cardTween;
+    Vector3 _offest;
     
     public CardSequenceBuilder(CardController cardInstance, Transform startTransform, Transform endTransform, Sprite cardBack, CardSO cardData = null)
     {
@@ -266,6 +287,26 @@ public class CardSequenceBuilder
         _isFacingUp = isFacingUp;
         return this;
     }
+    
+    public CardSequenceBuilder WithOffset(Vector3 offset)
+    {
+        _offest = offset;
+        return this;
+    }
+    
+    public CardSequenceBuilder WithOffset(float transitionTime)
+    {
+        _transitionTime = transitionTime;
+        return this;
+    }
+
+    public CardSequenceBuilder WithOffset(bool selfDestruct, float selfDestructDelay)
+    {
+        _selfDestruct = selfDestruct;
+        _selfDestructDelay = selfDestructDelay;
+        return this;
+    }
+
 
 
     public CardSequenceBuilder Build()
@@ -275,23 +316,25 @@ public class CardSequenceBuilder
         _cardController.gameObject.SetActive(true);
 
         _cardTween = _cardController.transform
-            .DOMove(_endPosition.position, 0.2f)
+            .DOMove(_endPosition.position + _offest, _transitionTime)
             .OnComplete(async () =>
             {
-                if (_cardController.HasFrontSide)
+                if (_isFacingUp)
                 {
                     _cardController.transform.SetParent(_endPosition);
                     _cardController.ToggleCardVisibility(_isFacingUp);
-                    return;
                 }
 
-                await UniTask.Delay(TimeSpan.FromSeconds(1f));
-#if UNITY_EDITOR                
-                Object.DestroyImmediate(_cardController.gameObject);
-#else                
-                Object.Destroy(_cardController.gameObject);
+                if (_selfDestruct)
+                {
+                    await UniTask.Delay(TimeSpan.FromSeconds(_selfDestructDelay));
+                    
+#if UNITY_EDITOR
+                    Object.DestroyImmediate(_cardController.gameObject);
+#else
+                    Object.Destroy(_startPosition.gameObject);
 #endif
-
+                }
             });
         
         return this;

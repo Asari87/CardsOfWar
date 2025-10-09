@@ -8,3 +8,4 @@ Test your luck in a card war game!
 
 <img width="958" height="495" alt="image" src="https://github.com/user-attachments/assets/19b35ff6-7365-40c4-b00f-eb37ac045a1d" />
 
+<img width="975" height="508" alt="image" src="https://github.com/user-attachments/assets/bc1bd483-2ca2-40ca-9d37-0ec1e4f0d677" />

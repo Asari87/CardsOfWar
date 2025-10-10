@@ -30,7 +30,14 @@ public class WarGameManager : GenericSingelton<WarGameManager>
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Space))
+        var hasTouchInput = false;
+        
+        if (Input.touchCount > 0)
+        {
+            hasTouchInput = Input.GetTouch(0).phase == TouchPhase.Began;
+        }
+        
+        if (Input.GetKeyDown(KeyCode.Space) || hasTouchInput)
         {
             _deckController.DrawCards();
         }

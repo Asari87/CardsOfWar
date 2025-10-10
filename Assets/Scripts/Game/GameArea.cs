@@ -33,9 +33,16 @@ public class GameArea : MonoBehaviour
     int _prevP2DeckCount;
     int _prevP2SideDeckCount;
     
+    ScreenOrientation _prevScreenOrientation;
+
+    const float OrientationCheckInterval = 0.25f;
+    float _timeSinceLastCheck = float.MaxValue;
+    
+    Camera _mainCamera;
     
     void Awake()
     {
+        _mainCamera ??= Camera.main;
         SetupCamera();
         ToggleP1DeckVisual(0);
         ToggleP1SideDeckVisual(0);
@@ -44,27 +51,45 @@ public class GameArea : MonoBehaviour
         
         p1PlacementPosition.ClearChildren();
         p2PlacementPosition.ClearChildren();
+
+        _prevScreenOrientation = Screen.orientation;
     }
 
-#if UNITY_EDITOR
-    void OnValidate()
+    void Update()
     {
-        if (!Application.isPlaying) return;
-        SetupCamera();
+        _timeSinceLastCheck += Time.deltaTime;
+        if (_timeSinceLastCheck >= OrientationCheckInterval)
+        {
+            _timeSinceLastCheck = 0;
+            if (_prevScreenOrientation == Screen.orientation) return;
+            
+            _prevScreenOrientation = Screen.orientation;
+            SetupCamera();
+        }
     }
-#endif
-    
+
     void SetupCamera()
     {
-        var mainCamera = Camera.main;
-        if (!mainCamera) return;
+        if (!_mainCamera) return;
         if (!_collider2D) return;
+
+        /*        Math by GPT        */
+        var size = _collider2D.bounds.size;
+        var w = size.x;
+        var h = size.y;
+        var a = _mainCamera.aspect;
+
+        // Width and height constraints at the worst-case rotation angle
+        // Derived from bounding box formula for a rotated rectangle
+        float theta = Mathf.Atan2(h, w);
+        float maxH = 0.5f * (h * Mathf.Abs(Mathf.Cos(theta)) + w * Mathf.Abs(Mathf.Sin(theta)));
+        float maxW = 0.5f * (w * Mathf.Abs(Mathf.Cos(theta)) + h * Mathf.Abs(Mathf.Sin(theta)));
+        /*****************************/
         
-        var areaSize = _collider2D.bounds.size;
         if (Screen.width >= Screen.height)
-            mainCamera.orthographicSize = areaSize.y / 2f; // horizontal case 
+            _mainCamera.DOOrthoSize(maxW / a, .1f); // horizontal case 
         else
-            mainCamera.orthographicSize = areaSize.x / 2f; // vertical case
+            _mainCamera.DOOrthoSize(maxH * 2, .1f); // vertical case
     }
 
     public void ToggleP1DeckVisual(int cardCount)

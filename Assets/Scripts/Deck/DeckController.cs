@@ -172,6 +172,95 @@ public class DeckController : MonoBehaviour
         _isInDrawingSequence = false;
     }
     
+        async UniTask InitiateWarSequence()
+    {
+        _ongoingWarCount++;
+        var response = await FakeServerManager.Instance.DrawNextCardRequest();
+
+        var sortingOrderOverride = _activeCards.Count;
+        var stepCount = 0;
+        foreach (var step in response.steps)
+        {
+            stepCount++;
+            sortingOrderOverride++;
+            
+            if (step.isGameOver)
+            {
+                Debug.Log($"Game Over! Status {step.state}");
+                _isGameOver = true;
+                OnGameEnd?.Invoke(step.state);
+                return;
+            }
+        
+            if(step.ignoreStepCalculation)
+            {
+                await DrawCardsFromDeck(
+                    step.P1Card, 
+                    step.P2Card, 
+                    false, 
+                    sortingOrderOverride,
+                    new Vector2(0.6f + 0.5f * stepCount, 0.4f * (_ongoingWarCount - 1))
+                    );
+                
+                await RefreshDeckVisuals(step.VisualDeckStatus,true, false);
+                await UniTask.Delay(TimeSpan.FromSeconds(0.1f));
+            }
+            else
+            {
+                await UniTask.Delay(TimeSpan.FromSeconds(0.2f));
+
+                switch (step.state)
+                {
+                    case FakeServerManager.RoundState.P1Win:
+                        await DrawCardsFromDeck(step.P1Card, step.P2Card, true, stepCount);
+                        await UniTask.Delay(TimeSpan.FromSeconds(1f));
+ 
+                        if (_playAnimations)
+                            await _gameArea.GameAreaAnimator.TriggerP1Win();
+                        
+                        await WinSequence(_gameArea.p1SideDeckPosition);
+                        await RefreshDeckVisuals(step.VisualDeckStatus,false, true);
+                        break;
+
+                    case FakeServerManager.RoundState.P2Win:
+                        await DrawCardsFromDeck(step.P1Card, step.P2Card, true, stepCount);
+                        await UniTask.Delay(TimeSpan.FromSeconds(1f));
+  
+                        if (_playAnimations)
+                            await _gameArea.GameAreaAnimator.TriggerP2Win();
+                        
+                        await WinSequence(_gameArea.p2SideDeckPosition);
+                        await RefreshDeckVisuals(step.VisualDeckStatus,false, true);
+                        break;
+
+                    case FakeServerManager.RoundState.Tie:
+                    case FakeServerManager.RoundState.War:
+                        var cards = await DrawCardsFromDeck(
+                            step.P1Card, 
+                            step.P2Card, 
+                            true, 
+                            stepCount, 
+                            new Vector2(0, 0.4f * _ongoingWarCount)
+                            );
+                        await UniTask.Delay(TimeSpan.FromSeconds(1f));
+                        
+                        if (_playAnimations)
+                            await _gameArea.GameAreaAnimator.TriggerWar();
+                        
+                        await UniTask.Delay(TimeSpan.FromSeconds(1f));
+                        
+                        cards.Item1.transform.SetParent(null, true);
+                        cards.Item2.transform.SetParent(null, true);
+
+                        await InitiateWarSequence();
+                        break;
+                }
+            }
+        }
+    }
+
+
+    
     async UniTask<(CardController, CardController)> DrawCardsFromDeck(CardSO p1CardData, CardSO p2CardData, bool isVisible, int sortingOrder = 0, Vector2 offest = default)
     {
         var p1Card = GetCardFromPool();
@@ -263,168 +352,5 @@ public class DeckController : MonoBehaviour
         card.transform.localScale = Vector3.one;
         card.transform.rotation = Quaternion.Euler(Vector3.zero);
         return card;
-    }
-
-    
-    async UniTask InitiateWarSequence()
-    {
-        _ongoingWarCount++;
-        var response = await FakeServerManager.Instance.DrawNextCardRequest();
-
-        var sortingOrderOverride = _activeCards.Count;
-        var stepCount = 0;
-        foreach (var step in response.steps)
-        {
-            stepCount++;
-            sortingOrderOverride++;
-            
-            if (step.isGameOver)
-            {
-                Debug.Log($"Game Over! Status {step.state}");
-                _isGameOver = true;
-                OnGameEnd?.Invoke(step.state);
-                return;
-            }
-        
-            if(step.ignoreStepCalculation)
-            {
-                await DrawCardsFromDeck(
-                    step.P1Card, 
-                    step.P2Card, 
-                    false, 
-                    sortingOrderOverride,
-                    new Vector2(0.6f + 0.5f * stepCount, 0.4f * (_ongoingWarCount - 1))
-                    );
-                
-                await RefreshDeckVisuals(step.VisualDeckStatus,true, false);
-                await UniTask.Delay(TimeSpan.FromSeconds(0.1f));
-            }
-            else
-            {
-                await UniTask.Delay(TimeSpan.FromSeconds(0.2f));
-
-                switch (step.state)
-                {
-                    case FakeServerManager.RoundState.P1Win:
-                        await DrawCardsFromDeck(
-                            step.P1Card, 
-                            step.P2Card, 
-                            true, 
-                            stepCount,
-                            new Vector2(0, 0.4f * (_ongoingWarCount - 1))
-                            );
-                        await UniTask.Delay(TimeSpan.FromSeconds(1f));
- 
-                        if (_playAnimations)
-                            await _gameArea.GameAreaAnimator.TriggerP1Win();
-                        
-                        await WinSequence(_gameArea.p1SideDeckPosition);
-                        await RefreshDeckVisuals(step.VisualDeckStatus,false, true);
-                        break;
-
-                    case FakeServerManager.RoundState.P2Win:
-                        await DrawCardsFromDeck(step.P1Card, step.P2Card, true, stepCount);
-                        await UniTask.Delay(TimeSpan.FromSeconds(1f));
-  
-                        if (_playAnimations)
-                            await _gameArea.GameAreaAnimator.TriggerP2Win();
-                        
-                        await WinSequence(_gameArea.p2SideDeckPosition);
-                        await RefreshDeckVisuals(step.VisualDeckStatus,false, true);
-                        break;
-
-                    case FakeServerManager.RoundState.Tie:
-                    case FakeServerManager.RoundState.War:
-                        var cards = await DrawCardsFromDeck(step.P1Card, step.P2Card, true, stepCount, new Vector2(0, 0.4f * (_ongoingWarCount - 1)));
-                        await UniTask.Delay(TimeSpan.FromSeconds(1f));
-                        
-                        if (_playAnimations)
-                            await _gameArea.GameAreaAnimator.TriggerWar();
-                        
-                        await UniTask.Delay(TimeSpan.FromSeconds(1f));
-                        
-                        cards.Item1.transform.SetParent(null, true);
-                        cards.Item2.transform.SetParent(null, true);
-
-                        await InitiateWarSequence();
-                        break;
-                }
-            }
-        }
-    }
-}
-
-public class CardSequenceBuilder
-{
-    CardController _cardController;
-    Transform _startPosition;
-    Transform _endPosition;
-    
-    int _sortingOrder = 0;
-    bool _isFacingUp = false;
-    float _transitionTime = 0.2f;
-    Tween _cardTween;
-    Vector3 _offest;
-    Action _callback;
-    
-    public CardSequenceBuilder(CardController cardInstance, Transform startTransform, Transform endTransform, Sprite cardBack, CardSO cardData = null)
-    {
-        _cardController = cardInstance;
-        _startPosition = startTransform;
-        _endPosition = endTransform;
-        
-        _cardController.SetCardGraphics(cardBack, cardData?.sprite);
-        _cardController.Initialize(cardData, false);
-    }
-
-    public CardSequenceBuilder WithSortingOrder(int sortingOrder)
-    {
-        _sortingOrder = sortingOrder;
-        return this;
-    }
-    
-    public CardSequenceBuilder WithFacingUp(bool isFacingUp)
-    {
-        _isFacingUp = isFacingUp;
-        return this;
-    }
-    
-    public CardSequenceBuilder WithOffset(Vector3 offset)
-    {
-        _offest = offset;
-        return this;
-    }
-
-    public CardSequenceBuilder WithCallback(Action callback)
-    {
-        _callback = callback;
-        return this;
-    }
-    
-    public CardSequenceBuilder Build()
-    {
-        _cardController.OverrideSortingOrder(_sortingOrder);
-        _cardController.transform.position = _startPosition.position;
-        _cardController.gameObject.SetActive(true);
-
-        _cardTween = _cardController.transform
-            .DOMove(_endPosition.position + _offest, _transitionTime)
-            .OnComplete(() =>
-            {
-                if (_isFacingUp)
-                {
-                    _cardController.transform.SetParent(_endPosition);
-                    _cardController.ToggleCardVisibility(_isFacingUp);
-                }
-
-                _callback?.Invoke();
-            });
-        
-        return this;
-    }
-
-    public async UniTask Play()
-    {
-        await _cardTween.Play();
     }
 }

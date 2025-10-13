@@ -6,5 +6,6 @@ Test your luck in a card war game!
 
 <img width="945" height="512" alt="image" src="https://github.com/user-attachments/assets/fe5e3501-c22e-4a43-abc2-fe238d35517d" />
 
-<img width="958" height="495" alt="image" src="https://github.com/user-attachments/assets/19b35ff6-7365-40c4-b00f-eb37ac045a1d" />
+<img width="995" height="571" alt="image" src="https://github.com/user-attachments/assets/a8726c38-e2c9-410c-9cf4-a8305efaa87b" />
+
 

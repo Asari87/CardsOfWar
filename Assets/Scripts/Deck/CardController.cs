@@ -6,32 +6,44 @@ public class CardController : MonoBehaviour
     [SerializeField] SpriteRenderer _frontSide;
     [SerializeField] SpriteRenderer _backSide;
     [SerializeField] SortingGroup  _sortingGroup;
+    [SerializeField] CardEffectController  _effectController;
+    [SerializeField] Animator _animator;
+    
+    static readonly int FacingUp = Animator.StringToHash("IsFacingUp");
     
     CardSO _cardData;
 
     public bool IsFacingUp => _frontSide?.gameObject.activeInHierarchy ?? false;
-    public bool HasFrontSide => _frontSide;
     public int CardValue => _cardData.value;
 
-    public void Initialize(Sprite backSide, CardSO cardData, bool isVisible)
+    public void Initialize(CardSO cardData, bool isVisible)
     {
-        _backSide.sprite = backSide;
         ToggleCardVisibility(isVisible);
         
         if (!cardData) return;
-        
         _cardData = cardData;
-        _frontSide.sprite = _cardData.sprite;
     }
 
+    public void SetCardGraphics(Sprite backSide, Sprite frontSide = null)
+    {
+        _frontSide.sprite = frontSide;
+        _backSide.sprite = backSide;
+    }
+ 
     public void ToggleCardVisibility(bool visible)
     {
-        _frontSide.gameObject.SetActive(visible);
-        _backSide.gameObject.SetActive(!visible);
+        _animator?.SetBool(FacingUp, visible);
+        // _frontSide.gameObject.SetActive(visible);
+        // _backSide.gameObject.SetActive(!visible);
     }
 
     public void OverrideSortingOrder(int order)
     {
         _sortingGroup.sortingOrder = order;
+    }
+    
+    public void ShowBorder(Color color, float duration = 0.5f)
+    {
+        _effectController.ShowBorder(color, duration);
     }
 }

@@ -13,6 +13,11 @@ public class DeckController : MonoBehaviour
     [SerializeField] Sprite _cardBack;
     [SerializeField] bool _playAnimations = true;
     
+    [Header("Card Win Colors")]
+    [SerializeField] Color _rareColor;
+    [SerializeField] Color _epicColor;
+    [SerializeField] Color _legendaryColor;
+    
     GameArea _gameArea;
     CardController _cardPrefab;
     
@@ -128,7 +133,7 @@ public class DeckController : MonoBehaviour
             {
                 case FakeServerManager.RoundState.P1Win:
                     await DrawCardsFromDeck(step.P1Card, step.P2Card, true);
-                    await UniTask.Delay(TimeSpan.FromSeconds(0.5f));
+                    await UniTask.Delay(TimeSpan.FromSeconds(1f));
 
                     if (_playAnimations)
                         await _gameArea.GameAreaAnimator.TriggerP1Win();
@@ -139,7 +144,7 @@ public class DeckController : MonoBehaviour
             
                 case FakeServerManager.RoundState.P2Win:
                     await DrawCardsFromDeck(step.P1Card, step.P2Card, true);
-                    await UniTask.Delay(TimeSpan.FromSeconds(0.5f));
+                    await UniTask.Delay(TimeSpan.FromSeconds(1f));
   
                     if (_playAnimations)
                         await _gameArea.GameAreaAnimator.TriggerP2Win();
@@ -151,7 +156,7 @@ public class DeckController : MonoBehaviour
                 case FakeServerManager.RoundState.Tie:
                 case FakeServerManager.RoundState.War:
                     var cards = await DrawCardsFromDeck(step.P1Card, step.P2Card, true);
-                    await UniTask.Delay(TimeSpan.FromSeconds(0.5f));
+                    await UniTask.Delay(TimeSpan.FromSeconds(1f));
   
                     if (_playAnimations)
                         await _gameArea.GameAreaAnimator.TriggerWar();
@@ -200,17 +205,34 @@ public class DeckController : MonoBehaviour
         _ongoingWarCount = 0;
         List<UniTask> tasks = new List<UniTask>();
 
-        if (_activeCards.Keys.Any(c => !c.IsFacingUp))
+        if(_activeCards.Count > 2)
         {
-            foreach (var card in _activeCards)
+            List<CardController> warLootCards = new List<CardController>();
+            if (_activeCards.Keys.Any(c => !c.IsFacingUp))
             {
-                if(card.Key.IsFacingUp) continue;
-                card.Key.ToggleCardVisibility(true);
-                await UniTask.Delay(TimeSpan.FromSeconds(0.1f));
+                foreach (var card in _activeCards)
+                {
+                    if (card.Key.IsFacingUp) continue;
+                    card.Key.ToggleCardVisibility(true);
+                    warLootCards.Add(card.Key);
+                    await UniTask.Delay(TimeSpan.FromSeconds(0.1f));
+                }
             }
-            await UniTask.Delay(TimeSpan.FromSeconds(2f));
+            await UniTask.Delay(TimeSpan.FromSeconds(0.5f));
+
+            foreach (var card in warLootCards)
+            {
+                if (card.CardValue > 10)
+                {
+                    if (card.CardValue < 14)
+                        card.ShowBorder(_rareColor, 3f);
+                    else
+                        card.ShowBorder(card.CardValue > 14 ? _legendaryColor : _epicColor, 3f);
+                }
+            }
+
+            await UniTask.Delay(TimeSpan.FromSeconds(3f));
         }
-        
         
         float durationOffset = 0;
         foreach (var activeCard in _activeCards)
@@ -271,7 +293,7 @@ public class DeckController : MonoBehaviour
                     step.P2Card, 
                     false, 
                     sortingOrderOverride,
-                    new Vector2(0.5f + 0.4f * stepCount, 0.35f * (_ongoingWarCount - 1))
+                    new Vector2(0.6f + 0.5f * stepCount, 0.4f * (_ongoingWarCount - 1))
                     );
                 
                 await RefreshDeckVisuals(step.VisualDeckStatus,true, false);
@@ -284,8 +306,14 @@ public class DeckController : MonoBehaviour
                 switch (step.state)
                 {
                     case FakeServerManager.RoundState.P1Win:
-                        await DrawCardsFromDeck(step.P1Card, step.P2Card, true, stepCount);
-                        await UniTask.Delay(TimeSpan.FromSeconds(0.5f));
+                        await DrawCardsFromDeck(
+                            step.P1Card, 
+                            step.P2Card, 
+                            true, 
+                            stepCount,
+                            new Vector2(0, 0.4f * (_ongoingWarCount - 1))
+                            );
+                        await UniTask.Delay(TimeSpan.FromSeconds(1f));
  
                         if (_playAnimations)
                             await _gameArea.GameAreaAnimator.TriggerP1Win();
@@ -296,7 +324,7 @@ public class DeckController : MonoBehaviour
 
                     case FakeServerManager.RoundState.P2Win:
                         await DrawCardsFromDeck(step.P1Card, step.P2Card, true, stepCount);
-                        await UniTask.Delay(TimeSpan.FromSeconds(0.5f));
+                        await UniTask.Delay(TimeSpan.FromSeconds(1f));
   
                         if (_playAnimations)
                             await _gameArea.GameAreaAnimator.TriggerP2Win();
@@ -307,12 +335,13 @@ public class DeckController : MonoBehaviour
 
                     case FakeServerManager.RoundState.Tie:
                     case FakeServerManager.RoundState.War:
-                        var cards = await DrawCardsFromDeck(step.P1Card, step.P2Card, true, stepCount, new Vector2(0, 0.35f * (_ongoingWarCount - 1)));
+                        var cards = await DrawCardsFromDeck(step.P1Card, step.P2Card, true, stepCount, new Vector2(0, 0.4f * (_ongoingWarCount - 1)));
+                        await UniTask.Delay(TimeSpan.FromSeconds(1f));
                         
                         if (_playAnimations)
                             await _gameArea.GameAreaAnimator.TriggerWar();
                         
-                        await UniTask.Delay(TimeSpan.FromSeconds(0.5f));
+                        await UniTask.Delay(TimeSpan.FromSeconds(1f));
                         
                         cards.Item1.transform.SetParent(null, true);
                         cards.Item2.transform.SetParent(null, true);
@@ -344,7 +373,8 @@ public class CardSequenceBuilder
         _startPosition = startTransform;
         _endPosition = endTransform;
         
-        _cardController.Initialize(cardBack, cardData, false);
+        _cardController.SetCardGraphics(cardBack, cardData?.sprite);
+        _cardController.Initialize(cardData, false);
     }
 
     public CardSequenceBuilder WithSortingOrder(int sortingOrder)
@@ -379,7 +409,7 @@ public class CardSequenceBuilder
 
         _cardTween = _cardController.transform
             .DOMove(_endPosition.position + _offest, _transitionTime)
-            .OnComplete(async () =>
+            .OnComplete(() =>
             {
                 if (_isFacingUp)
                 {

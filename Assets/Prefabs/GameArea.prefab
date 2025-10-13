@@ -771,7 +771,7 @@ SpriteRenderer:
   m_SortingLayer: 1
   m_SortingOrder: 0
   m_Sprite: {fileID: -9095717837082945937, guid: 207ee8102dd4143d288186ef0be518ee, type: 3}
-  m_Color: {r: 1, g: 0.4823327, b: 0.050943315, a: 1}
+  m_Color: {r: 0.6226415, g: 0.2830189, b: 0, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -1391,8 +1391,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4278208518
-  m_fontColor: {r: 0.025344988, g: 0.2830189, b: 0, a: 1}
+    rgba: 4278242521
+  m_fontColor: {r: 0.8490566, g: 0.79876566, b: 0, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -1504,7 +1504,7 @@ GameObject:
   - component: {fileID: 4482482061601168510}
   - component: {fileID: 9170175138200870240}
   m_Layer: 0
-  m_Name: TableGreen
+  m_Name: TableColor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1567,7 +1567,7 @@ SpriteRenderer:
   m_SortingLayer: 1
   m_SortingOrder: 1
   m_Sprite: {fileID: -9095717837082945937, guid: 207ee8102dd4143d288186ef0be518ee, type: 3}
-  m_Color: {r: 0.14972039, g: 0.5320754, b: 0.13151297, a: 1}
+  m_Color: {r: 0, g: 0.07840007, b: 0.4943396, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -1837,8 +1837,8 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4496741635010642265}
-  - {fileID: 1123127899146372401}
   - {fileID: 4302161157929742729}
+  - {fileID: 1123127899146372401}
   - {fileID: 6161475004564266194}
   - {fileID: 9080742366704595555}
   m_Father: {fileID: 0}
@@ -2015,8 +2015,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4278208518
-  m_fontColor: {r: 0.025344988, g: 0.2830189, b: 0, a: 1}
+    rgba: 4278242521
+  m_fontColor: {r: 0.8490566, g: 0.79876566, b: 0, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:

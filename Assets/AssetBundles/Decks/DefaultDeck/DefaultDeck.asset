@@ -68,3 +68,6 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 4808fb9f8692f9c4290d9f6a06445316, type: 2}
   - {fileID: 11400000, guid: 77581a1dd03c1b2469bde31e6fd68e7e, type: 2}
   back: {fileID: 780513938, guid: 83720ed6941e6004d8f27ef5911510f1, type: 3}
+  _rareColor: {r: 0, g: 0.6000643, b: 1, a: 1}
+  _epicColor: {r: 0.6748066, g: 0, b: 1, a: 1}
+  _legendaryColor: {r: 1, g: 0.39130577, b: 0, a: 1}

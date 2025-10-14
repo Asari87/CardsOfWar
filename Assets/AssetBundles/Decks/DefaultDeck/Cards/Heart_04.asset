@@ -12,7 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c7013a0aabeb18e448c007dd31aca834, type: 3}
   m_Name: Heart_04
   m_EditorClassIdentifier: 
+  cardData:
+    suit: 1
+    rank: 4
+    value: 4
   sprite: {fileID: -1498064320, guid: 83720ed6941e6004d8f27ef5911510f1, type: 3}
-  suit: 1
-  rank: 04
-  value: 4

@@ -325,7 +325,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _dontDestroyOnLoad: 1
-  _deck: {fileID: 11400000, guid: a46608337329fe048b5e51e6af1cfb9d, type: 2}
+  _deck: {fileID: 11400000, guid: 0deb088683c2bb245898767b297c44b0, type: 2}
   _pingDelayMs: 0
 --- !u!4 &986397643
 Transform:

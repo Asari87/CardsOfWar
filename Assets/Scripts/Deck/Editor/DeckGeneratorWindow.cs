@@ -87,9 +87,9 @@ public class DeckGeneratorWindow : EditorWindow
 
         int created = 0, skipped = 0, overwritten = 0;
 
-        foreach (CardSO.CardSuit suit in System.Enum.GetValues(typeof(CardSO.CardSuit)))
+        foreach (CardData.CardSuit suit in System.Enum.GetValues(typeof(CardData.CardSuit)))
         {
-            if (suit == CardSO.CardSuit.Joker)
+            if (suit == CardData.CardSuit.Joker)
                 continue;
 
             foreach (string rank in ranks)
@@ -104,9 +104,9 @@ public class DeckGeneratorWindow : EditorWindow
                 }
 
                 var card = ScriptableObject.CreateInstance<CardSO>();
-                card.suit = suit;
-                card.rank = rank;
-                card.value = ComputeValue(rank, aceHigh);
+                card.cardData.suit = suit;
+                card.cardData.rank = rank;
+                card.cardData.value = ComputeValue(rank, aceHigh);
 
                 if (File.Exists(assetPath) && overwriteExisting)
                 {
@@ -120,7 +120,6 @@ public class DeckGeneratorWindow : EditorWindow
             }
         }
 
-        // Add Jokers
         CreateJoker(targetDir, "Joker_Red", ref created, ref skipped, ref overwritten);
         CreateJoker(targetDir, "Joker_Black", ref created, ref skipped, ref overwritten);
 
@@ -145,9 +144,9 @@ public class DeckGeneratorWindow : EditorWindow
         }
 
         var joker = ScriptableObject.CreateInstance<CardSO>();
-        joker.suit = CardSO.CardSuit.Joker;
-        joker.rank = fileNameWithoutExt.Replace("Joker_", "");
-        joker.value = 999;
+        joker.cardData.suit = CardData.CardSuit.Joker;
+        joker.cardData.rank = fileNameWithoutExt.Replace("Joker_", "");
+        joker.cardData.value = 999;
 
         AssetDatabase.CreateAsset(joker, assetPath);
         created++;

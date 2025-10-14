@@ -14,17 +14,23 @@ public class CardSequenceBuilder
     float _transitionTime = 0.2f;
     Tween _cardTween;
     Vector3 _offest;
+    Sprite _cardBack;
+    CardSO _cardData;
     Action _callback;
     
-    public CardSequenceBuilder(CardController cardInstance, Transform startTransform, Transform endTransform, Sprite cardBack, CardSO cardData = null)
+    public CardSequenceBuilder(CardController cardInstance, Transform startTransform, Transform endTransform, Sprite cardBack)
     {
         _cardController = cardInstance;
         _startPosition = startTransform;
         _endPosition = endTransform;
-        
-        _cardController.SetCardGraphics(cardBack, cardData?.sprite);
-        _cardController.Initialize(cardData, false);
+        _cardBack = cardBack;
     }
+    
+    public CardSequenceBuilder WithCardData(CardSO cardData)
+    {
+        _cardData = cardData;
+        return this;
+    } 
 
     public CardSequenceBuilder WithSortingOrder(int sortingOrder)
     {
@@ -52,6 +58,8 @@ public class CardSequenceBuilder
     
     public CardSequenceBuilder Build()
     {
+        _cardController.SetCardGraphics(_cardBack, _cardData?.sprite);
+        _cardController.Initialize(_cardData, false);
         _cardController.OverrideSortingOrder(_sortingOrder);
         _cardController.transform.position = _startPosition.position;
         _cardController.gameObject.SetActive(true);

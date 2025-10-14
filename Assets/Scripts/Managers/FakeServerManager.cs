@@ -5,32 +5,18 @@ using UnityEngine;
 
 public class FakeServerManager : GenericSingelton<FakeServerManager>
 {
-    [SerializeField] DeckSO _deck;
+    [SerializeField] ServerDeckSO _deck;
     
     [Header("Debug")]
     [SerializeField] int _pingDelayMs;
     public enum RoundState { P1Win, P2Win, War, Tie }
-    public enum GameState { Running, War, Ended }
-    
-    GameState _gameState;
-    
-    Player p1;
-    Player p2;
-    CardSO _p1TopCard;
-    CardSO _p2TopCard;
-    List<CardSO> _activeCards;
 
-    bool _isGameRunning;
-
-    void Start()
-    {
-        _isGameRunning = false;
-    }
+    CardGameData _activeGameData;
     
     public async UniTask<DrawCardResponse> DrawNextCardRequest()
     {
         await UniTask.Delay(_pingDelayMs);
-        return _gameState is GameState.War ? await HandleWarState() : await HandleRunningState();
+        return _activeGameData.gameState is CardGameData.GameState.War ? await HandleWarState() : await HandleRunningState();
     }
 
     UniTask<DrawCardResponse> HandleRunningState()
@@ -45,28 +31,30 @@ public class FakeServerManager : GenericSingelton<FakeServerManager>
     {
         var stepData = new GameStepData();
         
-        var p1Card = p1.DrawCard();
-        var p2Card = p2.DrawCard();
+        var p1Card = _activeGameData.p1.DrawCard();
+        var p2Card = _activeGameData.p2.DrawCard();
 
         Debug.Log($"{GetType()} - Drawing: P1 ({p1Card?.suit}_{p1Card?.rank}) P2 ({p2Card?.suit}_{p2Card?.rank})");
         
         // game end checks
-        if(!p1Card || !p2Card)
+        if(p1Card == null || p2Card == null)
         {
-            _gameState = GameState.Ended;
+            _activeGameData.gameState = CardGameData.GameState.Ended;
             stepData.isGameOver = true;
 
-            if (!p1Card && !p2Card)
+            switch (p1Card)
             {
-                stepData.state = RoundState.Tie;
-            }
-            else if (!p1Card)
-            {
-                stepData.state = RoundState.P2Win;
-            }
-            else if (!p2Card)
-            {
-                stepData.state = RoundState.P1Win;
+                case null when p2Card == null:
+                    stepData.state = RoundState.Tie;
+                    break;
+                case null:
+                    stepData.state = RoundState.P2Win;
+                    break;
+                default:
+                {
+                    stepData.state = RoundState.P1Win;
+                    break;
+                }
             }
         }
         else if (calculateResult)
@@ -74,50 +62,50 @@ public class FakeServerManager : GenericSingelton<FakeServerManager>
             if (p1Card.value == p2Card.value)
             {
                 stepData.state = RoundState.War;
-                _gameState = GameState.War;
-                _activeCards.Add(p1Card);
-                _activeCards.Add(p2Card);
+                _activeGameData.gameState = CardGameData.GameState.War;
+                _activeGameData.activeCards.Add(p1Card);
+                _activeGameData.activeCards.Add(p2Card);
             }
             else if (p1Card.value > p2Card.value)
             {
                 stepData.state = RoundState.P1Win;
-                _gameState = GameState.Running;
-                p1.sideDeck.Add(p1Card);
-                p1.sideDeck.Add(p2Card);
-                if(_activeCards.Count > 0)
+                _activeGameData.gameState = CardGameData.GameState.Running;
+                _activeGameData.p1.reserveDeck.Add(p1Card);
+                _activeGameData.p1.reserveDeck.Add(p2Card);
+                if(_activeGameData.activeCards.Count > 0)
                 {
-                    p1.sideDeck.AddRange(_activeCards);
-                    _activeCards.Clear();
+                    _activeGameData.p1.reserveDeck.AddRange(_activeGameData.activeCards);
+                    _activeGameData.activeCards.Clear();
                 }
             }
             else
             {
                 stepData.state = RoundState.P2Win;
-                _gameState = GameState.Running;
-                p2.sideDeck.Add(p1Card);
-                p2.sideDeck.Add(p2Card);
-                if(_activeCards.Count > 0)
+                _activeGameData.gameState = CardGameData.GameState.Running;
+                _activeGameData.p2.reserveDeck.Add(p1Card);
+                _activeGameData.p2.reserveDeck.Add(p2Card);
+                if(_activeGameData.activeCards.Count > 0)
                 {
-                    p2.sideDeck.AddRange(_activeCards);
-                    _activeCards.Clear();
+                    _activeGameData.p2.reserveDeck.AddRange(_activeGameData.activeCards);
+                    _activeGameData.activeCards.Clear();
                 }
             }
         }
         else
         {
-            _gameState = GameState.War;
-            _activeCards.Add(p1Card);
-            _activeCards.Add(p2Card);
+            _activeGameData.gameState = CardGameData.GameState.War;
+            _activeGameData.activeCards.Add(p1Card);
+            _activeGameData.activeCards.Add(p2Card);
         }
         
         stepData.P1Card = p1Card;
         stepData.P2Card = p2Card;
         stepData.VisualDeckStatus = new VisualDeckStatus()
         {
-            p1DeckCount = p1.deck.Count,
-            p2DeckCount = p2.deck.Count,
-            p1SideDeckCount = p1.sideDeck.Count,
-            p2SideDeckCount = p2.sideDeck.Count
+            p1DeckCount = _activeGameData.p1.deck.Count,
+            p2DeckCount = _activeGameData.p2.deck.Count,
+            p1SideDeckCount = _activeGameData.p1.reserveDeck.Count,
+            p2SideDeckCount = _activeGameData.p2.reserveDeck.Count
         };
         return stepData;
     }
@@ -152,26 +140,23 @@ public class FakeServerManager : GenericSingelton<FakeServerManager>
     {
         Debug.Log($"{GetType()} - New game started");
         
-        p1 = new Player();
-        p2 = new Player();
-        _activeCards = new List<CardSO>();
-        _gameState = GameState.Running;
+        _activeGameData = new CardGameData();
         ShuffleDeck(_deck.cards);
         
         return UniTask.FromResult(new NewGameResponse()
         {
             success = true,
-            p1DeckCount = p1.deck.Count,
-            p2DeckCount = p2.deck.Count,
+            p1DeckCount = _activeGameData.p1.deck.Count,
+            p2DeckCount = _activeGameData.p2.deck.Count,
         });
     }
     
-    void ShuffleDeck(List<CardSO> cards)
+    void ShuffleDeck(List<CardData> cards)
     {
         var shuffledDeck = cards.Shuffle();
         
-        p1.deck.AddRange(shuffledDeck.Where(c => shuffledDeck.IndexOf(c) % 2 == 0));
-        p2.deck.AddRange(shuffledDeck.Where(c => shuffledDeck.IndexOf(c) % 2 != 0));
+        _activeGameData.p1.deck.AddRange(shuffledDeck.Where(c => shuffledDeck.IndexOf(c) % 2 == 0));
+        _activeGameData.p2.deck.AddRange(shuffledDeck.Where(c => shuffledDeck.IndexOf(c) % 2 != 0));
     }
 }
 
@@ -195,8 +180,8 @@ public class GameStepData
     public bool isGameOver;
     public bool ignoreStepCalculation;
     public FakeServerManager.RoundState state;
-    public CardSO P1Card;
-    public CardSO P2Card;
+    public CardData P1Card;
+    public CardData P2Card;
     public VisualDeckStatus VisualDeckStatus;
 }
 
@@ -208,30 +193,3 @@ public class VisualDeckStatus
     public int p2SideDeckCount;
 }
 
-public class Player
-{
-    public List<CardSO> deck = new();
-    public List<CardSO> sideDeck = new();
-
-    public CardSO DrawCard()
-    {
-        // check main deck
-        if (deck.Count > 0)
-        {
-            var topCard = deck.First();
-            deck.Remove(topCard);
-            return topCard;
-        }
-
-        // check reserve deck
-        if (sideDeck.Count > 0)
-        {
-            deck.AddRange(sideDeck.Shuffle());
-            sideDeck.Clear();
-            return DrawCard();
-        }
-
-        // out of cards
-        return null;
-    }
-}

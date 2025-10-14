@@ -12,7 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c7013a0aabeb18e448c007dd31aca834, type: 3}
   m_Name: Club_08
   m_EditorClassIdentifier: 
+  cardData:
+    suit: 3
+    rank: 8
+    value: 8
   sprite: {fileID: 1917579921, guid: 83720ed6941e6004d8f27ef5911510f1, type: 3}
-  suit: 3
-  rank: 08
-  value: 8

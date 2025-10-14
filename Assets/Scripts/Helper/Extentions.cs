@@ -36,10 +36,10 @@ public static class Extentions
         return transform.GetChild(transform.childCount - 1).TryGetComponent<T>(out var component) ? component : default;
     }
     
-    public static List<CardSO> Shuffle(this List<CardSO> deck)
+    public static List<T> Shuffle<T>(this List<T> deck)
     {
-        List<CardSO> cpyDeck = new List<CardSO>(deck);
-        List<CardSO> tempDeck = new List<CardSO>();
+        List<T> cpyDeck = new List<T>(deck);
+        List<T> tempDeck = new List<T>();
         
         while (cpyDeck.Count > 0)
         {

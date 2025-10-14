@@ -12,11 +12,8 @@ public class DeckController : MonoBehaviour
     [SerializeField] GameArea _gameAreaPrefab;
     [SerializeField] Sprite _cardBack;
     [SerializeField] bool _playAnimations = true;
-    
-    [Header("Card Win Colors")]
-    [SerializeField] Color _rareColor;
-    [SerializeField] Color _epicColor;
-    [SerializeField] Color _legendaryColor;
+
+    [SerializeField] DeckSO _loadedDeckSO;
     
     GameArea _gameArea;
     CardController _cardPrefab;
@@ -216,21 +213,25 @@ public class DeckController : MonoBehaviour
     }
 
     
-    async UniTask<(CardController, CardController)> DrawCardsFromDeck(CardSO p1CardData, CardSO p2CardData, bool isVisible, int sortingOrder = 0, Vector2 offest = default)
+    async UniTask<(CardController, CardController)> DrawCardsFromDeck(CardData p1CardData, CardData p2CardData, bool isVisible, int sortingOrder = 0, Vector2 offest = default)
     {
         var p1Card = GetCardFromPool();
-        _activeCards.Add(p1Card, p1CardData);
+        var p1CardDataSO = _loadedDeckSO.GetCardFromData(p1CardData);
+        _activeCards.Add(p1Card, p1CardDataSO);
         
-        var p1Sequence = new CardSequenceBuilder(p1Card, _gameArea.p1DeckPosition, _gameArea.p1PlacementPosition, _cardBack, p1CardData)
+        var p1Sequence = new CardSequenceBuilder(p1Card, _gameArea.p1DeckPosition, _gameArea.p1PlacementPosition, _cardBack)
+            .WithCardData(p1CardDataSO)
             .WithSortingOrder(sortingOrder)
             .WithFacingUp(isVisible)
             .WithOffset(offest)
             .Build();
         
         var p2Card = GetCardFromPool();
-        _activeCards.Add(p2Card, p2CardData);
+        var p2CardDataSO = _loadedDeckSO.GetCardFromData(p2CardData);
+        _activeCards.Add(p2Card, p2CardDataSO);
         
-        var p2Sequence = new CardSequenceBuilder(p2Card, _gameArea.p2DeckPosition, _gameArea.p2PlacementPosition, _cardBack, p2CardData)
+        var p2Sequence = new CardSequenceBuilder(p2Card, _gameArea.p2DeckPosition, _gameArea.p2PlacementPosition, _cardBack)
+            .WithCardData(p2CardDataSO)
             .WithSortingOrder(sortingOrder)
             .WithFacingUp(isVisible)
             .WithOffset(-offest)
@@ -266,13 +267,8 @@ public class DeckController : MonoBehaviour
 
             foreach (var card in warLootCards)
             {
-                if (card.CardValue > 10)
-                {
-                    if (card.CardValue < 14)
-                        card.ShowBorder(_rareColor, 3f);
-                    else
-                        card.ShowBorder(card.CardValue > 14 ? _legendaryColor : _epicColor, 3f);
-                }
+                var color = _loadedDeckSO.GetCardEffectColor(card.CardValue);
+                card.ShowBorder(color, 3f);
             }
 
             await UniTask.Delay(TimeSpan.FromSeconds(3f));

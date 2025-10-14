@@ -14,7 +14,7 @@ public class CardController : MonoBehaviour
     CardSO _cardData;
 
     public bool IsFacingUp => _frontSide?.gameObject.activeInHierarchy ?? false;
-    public int CardValue => _cardData.value;
+    public int CardValue => _cardData?.cardData.value ?? -1;
 
     public void Initialize(CardSO cardData, bool isVisible)
     {

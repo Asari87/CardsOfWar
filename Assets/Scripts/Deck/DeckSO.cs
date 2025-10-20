@@ -24,6 +24,19 @@ public class DeckSO : ScriptableObject
         return cards.SingleOrDefault(c => c.cardData.rank.Equals(data.rank) && c.cardData.suit.Equals(data.suit));    
     }
 
+    public List<CardSO> GetCardFromData(List<CardData> cardList)
+    {
+        var cardSoList = new List<CardSO>();
+        foreach (var data in cardList)
+        {
+            var cardSo = cards.SingleOrDefault(c => c.cardData.rank.Equals(data.rank) && c.cardData.suit.Equals(data.suit));
+            if(!cardSo) continue;
+            cardSoList.Add(cardSo);
+        }
+
+        return cardSoList;
+    }
+    
     public Color GetCardEffectColor(CardSO card)
     {
         var cardValue = card.cardData.value;

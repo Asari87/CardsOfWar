@@ -18,7 +18,8 @@ public class DeckController : MonoBehaviour
     GameArea _gameArea;
     CardController _cardPrefab;
     
-    Dictionary<CardController, CardSO> _activeCards = new();
+    Dictionary<CardController, CardSO> _p1ActiveCards = new();
+    Dictionary<CardController, CardSO> _p2ActiveCards = new();
     ObjectPool<CardController> _cardControllerPool;
     bool _isInDrawingSequence;
     bool _isGameOver;
@@ -115,7 +116,7 @@ public class DeckController : MonoBehaviour
     {
         var response = await FakeServerManager.Instance.DrawNextCardRequest();
         
-        var sortingOrderOverride = _activeCards.Count;
+        var sortingOrderOverride = _p1ActiveCards.Count + _p2ActiveCards.Count;
         var stepCount = 0;
         
         foreach (var step in response.steps)
@@ -156,6 +157,7 @@ public class DeckController : MonoBehaviour
                             step.P1Card, 
                             step.P2Card, 
                             true,
+                            _ongoingWarCount,
                             offest: new Vector2(0, 0.1f * _ongoingWarCount)
                             );
                         await UniTask.Delay(TimeSpan.FromSeconds(1f));
@@ -173,6 +175,7 @@ public class DeckController : MonoBehaviour
                             step.P1Card, 
                             step.P2Card, 
                             true,
+                            _ongoingWarCount,
                             offest: new Vector2(0, 0.1f * _ongoingWarCount)
                             );
                         await UniTask.Delay(TimeSpan.FromSeconds(1f));
@@ -216,22 +219,22 @@ public class DeckController : MonoBehaviour
     async UniTask<(CardController, CardController)> DrawCardsFromDeck(CardData p1CardData, CardData p2CardData, bool isVisible, int sortingOrder = 0, Vector2 offest = default)
     {
         var p1Card = GetCardFromPool();
-        var p1CardDataSO = _loadedDeckSO.GetCardFromData(p1CardData);
-        _activeCards.Add(p1Card, p1CardDataSO);
+        var p1CardDataSo = _loadedDeckSO.GetCardFromData(p1CardData);
+        _p1ActiveCards.Add(p1Card, p1CardDataSo);
         
         var p1Sequence = new CardSequenceBuilder(p1Card, _gameArea.p1DeckPosition, _gameArea.p1PlacementPosition, _cardBack)
-            .WithCardData(p1CardDataSO)
+            .WithCardData(p1CardDataSo)
             .WithSortingOrder(sortingOrder)
             .WithFacingUp(isVisible)
             .WithOffset(offest)
             .Build();
         
         var p2Card = GetCardFromPool();
-        var p2CardDataSO = _loadedDeckSO.GetCardFromData(p2CardData);
-        _activeCards.Add(p2Card, p2CardDataSO);
+        var p2CardDataSo = _loadedDeckSO.GetCardFromData(p2CardData);
+        _p2ActiveCards.Add(p2Card, p2CardDataSo);
         
         var p2Sequence = new CardSequenceBuilder(p2Card, _gameArea.p2DeckPosition, _gameArea.p2PlacementPosition, _cardBack)
-            .WithCardData(p2CardDataSO)
+            .WithCardData(p2CardDataSo)
             .WithSortingOrder(sortingOrder)
             .WithFacingUp(isVisible)
             .WithOffset(-offest)
@@ -247,15 +250,12 @@ public class DeckController : MonoBehaviour
 
     async UniTask WinSequence(Transform winningSide)
     {
-        _ongoingWarCount = 0;
-        List<UniTask> tasks = new List<UniTask>();
-
-        if(_activeCards.Count > 2)
+        if (_p1ActiveCards.Count + _p2ActiveCards.Count > 2)
         {
             List<CardController> warLootCards = new List<CardController>();
-            if (_activeCards.Keys.Any(c => !c.IsFacingUp))
+            if (_p1ActiveCards.Keys.Any(c => !c.IsFacingUp))
             {
-                foreach (var card in _activeCards)
+                foreach (var card in _p1ActiveCards)
                 {
                     if (card.Key.IsFacingUp) continue;
                     card.Key.ToggleCardVisibility(true);
@@ -263,6 +263,18 @@ public class DeckController : MonoBehaviour
                     await UniTask.Delay(TimeSpan.FromSeconds(0.1f));
                 }
             }
+
+            if (_p2ActiveCards.Keys.Any(c => !c.IsFacingUp))
+            {
+                foreach (var card in _p2ActiveCards)
+                {
+                    if (card.Key.IsFacingUp) continue;
+                    card.Key.ToggleCardVisibility(true);
+                    warLootCards.Add(card.Key);
+                    await UniTask.Delay(TimeSpan.FromSeconds(0.1f));
+                }
+            }
+
             await UniTask.Delay(TimeSpan.FromSeconds(0.5f));
 
             foreach (var card in warLootCards)
@@ -272,10 +284,17 @@ public class DeckController : MonoBehaviour
             }
 
             await UniTask.Delay(TimeSpan.FromSeconds(3f));
-        }
+            if (_ongoingWarCount > 0)
+            {
+                var popup = PopupManager.Instance.ShowWarResultPopup(winningSide == _gameArea.p1SideDeckPosition, _loadedDeckSO, _p1ActiveCards.Values.ToList(), _p2ActiveCards.Values.ToList());
+                await UniTask.WaitUntil(() => !popup);
+            } }
+
         
+        
+        List<UniTask> tasks = new List<UniTask>();
         float durationOffset = 0;
-        foreach (var activeCard in _activeCards)
+        foreach (var activeCard in _p1ActiveCards)
         {
             if(activeCard.Key.transform.parent)
                 activeCard.Key.transform.parent.rotation = Quaternion.Euler(Vector3.zero);
@@ -290,10 +309,28 @@ public class DeckController : MonoBehaviour
             }).ToUniTask();
             tasks.Add(task);
         }
-
+        
+        foreach (var activeCard in _p2ActiveCards)
+        {
+            if(activeCard.Key.transform.parent)
+                activeCard.Key.transform.parent.rotation = Quaternion.Euler(Vector3.zero);
+            
+            durationOffset += 0.075f;
+            activeCard.Key.transform.SetParent(null, true);
+            var task = activeCard.Key.transform.DOMove(winningSide.position, 0.2f + durationOffset).OnComplete(() =>
+            {
+                activeCard.Key.ToggleCardVisibility(false);
+                activeCard.Key.gameObject.SetActive(false);
+                _cardControllerPool.Release(activeCard.Key);
+            }).ToUniTask();
+            tasks.Add(task);
+        }
         
         await UniTask.WhenAll(tasks);
-        _activeCards.Clear();
+
+        _p1ActiveCards.Clear();
+        _p2ActiveCards.Clear();
+        _ongoingWarCount = 0;
     }
 
     

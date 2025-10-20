@@ -1,6 +1,6 @@
 # CardsOfWar
 
-Test your luck in a card war game!
+[Test your luck in a card war game!](https://play.unity.com/en/games/0afbe0be-ff04-4366-a6c2-a9bd9d876814/cards-of-war)
 
 <img width="940" height="492" alt="image" src="https://github.com/user-attachments/assets/f9c4a773-f00b-4b0e-b299-8678dd999ff3" />
 
